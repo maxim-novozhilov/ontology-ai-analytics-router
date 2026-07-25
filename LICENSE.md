@@ -1,4 +1,4 @@
-Copyright (c) 2026 Maksim Novozhilov. All rights reserved.
+Copyright (c) 2026 [Maksim Novozhilov]. All rights reserved.
 
 This software and all associated source code (the "Software") are the sole 
 intellectual property of the author. 
