@@ -1,0 +1,116 @@
+real_telemetry.json
+│
+├── telemetry: [ ]                                ← list of sites
+│   └── {} — single site
+│       ├── site_id: str                          ← unique site ID, mapping key across all sources
+│       ├── data_flags: [str]                     ← flexible routing allowance flag registry
+│       │     possible values: missing_coordinates, ghost_site,
+│       │     cph_exceeds_rated, duplicate_id, missing_cph,
+│       │     missing_capacity, missing_reading, fuel_exceeds_capacity,
+│       │     actual_cph_efficiency_warning, dynamic_cph_efficiency_warning
+│       ├── region: str                           ← normalized region name
+│       ├── lat, lon: float | null                ← coordinates from the last visit where they were populated
+│       ├── total_capacity_liters: float          ← tank capacity
+│       ├── historical_cph: float                 ← 6-month average fuel consumption per hour
+│       ├── rated_cph_max: float                  ← max(G1,G2), rated nameplate consumption
+│       ├── gensets_count: int                    ← number of generators
+│       ├── g1_kva, g2_kva: float                 ← rated generator power output
+│       ├── last_refuel_timestamp: str | null     ← timestamp of the last visit with a valid reading
+│       ├── fuel_level_after_refuel: float | null ← raw reading after visit, sum across all generator rows
+│       ├── current_fuel_estimate: float | null   ← estimated remaining fuel now
+│       ├── actual_cph_last_run: float | null     ← fuel consumption rate between last 2 visits
+│       ├── dynamic_cph_trend: float | null       ← 30-day moving average
+│       ├── tte_hours: float|null                 ← time-to-empty in hours for analytics
+│       ├── tte_deadline_sec: int|null            ← time-to-empty in seconds
+│       ├── solver_priority: "critical"|"planned"|"nominal"|null ← urgency category for the router
+│       ├── service_parameters: {}
+│       │     ├── base_setup_sec: int             ← setup time constant before refueling
+│       │     ├── pump_rate_lps: float            ← pumping speed constant in liters per second
+│       │     ├── estimated_max_service_time_sec: float|null ← service time estimate for the router
+│       │     └── fill_volume_l: float|null                  ← fuel volume required for a full tank
+│       └── gensets_detail: [ ]
+│              └── {} — single generator
+│                  ├── name: str               ← generator name from the visit record
+│                  ├── capacity_liters: float  ← capacity per visit record row
+│                  ├── fuel_before: float|null ← fuel reading before refueling
+│                  └── fuel_after: float|null  ← fuel reading after refueling
+│
+└── audit: {}
+    │
+    ├── master_data_issues: {}          ← issues in accounting/master data
+    │     ├── duplicate_ids: [str]      ← duplicate ID Number
+    │     ├── missing_cph_active: [str] ← zero CPH, site is present in visits
+    │     ├── missing_cph_orphan: [str] ← zero CPH, site is missing in visits
+    │     └── cph_exceeds_rated: [str]  ← 6-month average consumption per hour exceeds rated capacity
+    │
+    ├── dynamic_data_issues: {}                  ← issues in visit data
+    │     ├── sites_missing_capacity: [str]      ← tank capacity undefined
+    │     ├── sites_missing_reading: [str]       ← no valid fuel reading
+    │     ├── sites_missing_coordinates: [str]   ← no visits with populated coordinates
+    │     ├── sites_fuel_exceeds_capacity: [str] ← fuel reading exceeds tank capacity
+    │     ├── sites_actual_cph_efficiency_warning: [str]  ← single spike in fuel consumption
+    │     ├── sites_dynamic_cph_efficiency_warning: [str] ← sustained increase in fuel consumption
+    │     └── telemetry_glitches: {}             ← anti-glitch filter statistics
+    │           ├── total_visits: int            ← total visits before filtering
+    │           ├── valid_visits: int            ← remaining visits after filtering
+    │           └── glitches_caught: int         ← number of sites filtered out as duplicates/glitches
+    │
+    ├── register_data_issues: {}                 ← reconciliation issues between accounting and visits
+    │     ├── ghost_sites: [str]                 ← sites present in visits but missing in accounting
+    │     ├── region_names_normalized: {}        ← normalized region names
+    │     │     └── region: [str]                ← spelling variations
+    │     ├── regions_unmatched: [ ]             ← region present in only one source
+    │     │     └── {} - single month
+    │     │         ├── month: str                ← month
+    │     │         ├── region: str               ← region
+    │     │         └── source: str               ← specific source: accounting_only or calculated_only
+    │     └── possible_region_aliases: [ ]        ← candidate regions for merging
+    │           └── {} - single month
+    │               ├── month: str                ← month
+    │               ├── accounting_name: str      ← region name taken directly from accounting
+    │               └── calculated_name: str      ← region name calculated from visits
+    │
+    ├── regional_report: {}                        ← reconciliation between visit calculation and accounting
+    │     ├── regional_consumption_calculated: {}  ← consumption calculated from visits
+    │     │     └──month: {} - single month
+    │     │          └──region: {} - single region  
+    │     │               ├── consumption_l: float ← total regional consumption for the month, liters
+    │     │               └── sites_counted: int   ← number of sites included in the calculation
+    │     ├── regional_accounting_summary: {}      ← raw accounting summary by region and month
+    │     │     └──month: {} - single month
+    │     │          └──region: {} - single region           
+    │     │               ├── fuel_consumption_qty_l: float    ← fuel consumption according to accounting, liters
+    │     │               ├── fuel_consumption_cost_usd: float ← consumption cost
+    │     │               ├── fuel_delivered_qty_l: float      ← fuel delivered, liters
+    │     │               └── total_sites: int                 ← total sites in region according to accounting
+    │     └── regional_accounting_mismatch: [ ]          ← comparison between calculated and accounting with percentage tolerance
+    │           └── {} - single region
+    │               ├──region: str                       ← region with discrepancy
+    │               ├──accounting_qty_l: float           ← consumption according to accounting, liters
+    │               ├──calculated_qty_l: float           ← consumption calculated from visits, liters
+    │               ├──deviation_pct: float              ← deviation of calculation from accounting, %      
+    │               ├──sites_counted_in_visits: int      ← number of sites accounted for in calculation
+    │               ├──sites_expected_by_accounting: int ← number of sites expected by accounting data
+    │               └──likely_coverage_gap: bool         ← likely reason for discrepancy: true (explained by missing visit coverage) or false (visit coverage is sufficient, requires deeper investigation)
+    │
+    ├── historical_analytics: {}                      ← alarm history
+    │     └── site_id: {} - 
+    │            └── YYYY-MM: {} - single month
+    │                 ├── alarms_count: int           ← number of alarms per month
+    │                 └── total_downtime_hours: float ← total downtime per month, hours
+    └── summary_report: {}                                  ← flat counters for dashboard
+          ├── count_duplicate_ids: int                      ← number of duplicate ID Numbers in accounting
+          ├── count_missing_cph_active: int                 ← number of sites missing CPH, present in visits
+          ├── count_missing_cph_orphan: int                 ← number of sites missing CPH, absent in visits
+          ├── count_cph_exceeds_rated: int                  ← number of sites where historical average consumption exceeds rated capacity
+          ├── count_missing_capacity: int                   ← number of sites missing tank capacity data
+          ├── count_missing_reading: int                    ← number of sites missing valid fuel readings
+          ├── count_missing_coordinates: int                ← number of sites missing coordinates
+          ├── count_fuel_exceeds_capacity: int              ← number of sites where fuel reading exceeds tank capacity
+          ├── count_actual_cph_efficiency_warning: int      ← number of sites with a single consumption spike
+          ├── count_dynamic_cph_efficiency_warning: int     ← number of sites with sustained consumption growth
+          ├── count_glitches_found: int                     ← number of filtered glitches
+          ├── count_ghost_sites: int.                       ← number of sites present in visits but missing in accounting
+          ├── count_regions_unmatched: int                  ← number of regions encountered in only one source
+          ├── count_regional_mismatch: int                  ← number of regions with discrepancy exceeding tolerance
+          └── count_sites_with_alarms: int                  ← number of sites with at least one alarm
