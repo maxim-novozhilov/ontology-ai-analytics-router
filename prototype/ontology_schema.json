@@ -1,18 +1,18 @@
 {
   "_meta": {
-    "purpose": "Уровень 2 концепции — семантический граф поверх real_telemetry.json. Граф не хранит данные, только путь к ним (tools).",
-    "source_of_truth": "real_telemetry.json (Уровень 1, ETL: telemetry_ai_etl.py)",
-    "not_yet_wired": "route_solution.json (совлер) — сущности размечены заранее, данными пока не наполняются"
+    "purpose": "Level 2 concept — semantic graph on top of real_telemetry.json. Graph does not store data, only the path to it (tools).",
+    "source_of_truth": "real_telemetry.json (Level 1, ETL: telemetry_ai_etl.py)",
+    "not_yet_wired": "route_solution.json (solver) — entities are marked up in advance, not yet populated with data"
   },
   "entities": {
     "Site": {
-      "description": "Телекоммуникационная вышка (базовая станция). Главный физический узел инфраструктуры.",
+      "description": "Telecommunication tower (base station). The main physical node of the infrastructure.",
       "properties": [
-        {"name": "site_id", "type": "string", "description": "Уникальный ID вышки, ключ сопоставления между всеми источниками"},
+        {"name": "site_id", "type": "string", "description": "Unique tower ID, key for matching between all sources"},
         {
            "name": "data_flags", 
            "type": "array", 
-           "description": "Гибкий справочник допуска к маршрутизации. ВАЖНО: при фильтрации используй ТОЛЬКО значения из списка enum. Никогда не подставляй сюда названия других полей.", 
+           "description": "Flexible reference list for routing access. IMPORTANT: when filtering, use ONLY values from the enum list. Never substitute names of other fields here.", 
            "enum": [
              "duplicate_id",
              "cph_exceeds_rated",
@@ -25,135 +25,135 @@
              "ghost_site"
            ], 
            "enum_descriptions": {
-             "actual_cph_efficiency_warning": "Разовый скачок расхода топлива.",
-             "dynamic_cph_efficiency_warning": "Устойчивый или долгосрочный рост расхода топлива."
+             "actual_cph_efficiency_warning": "One-time fuel consumption spike.",
+             "dynamic_cph_efficiency_warning": "Sustained or long-term growth in fuel consumption."
            }
         },
-        {"name": "region", "type": "string", "description": "Нормализованное имя региона"},
-        {"name": "lat", "type": "float", "description": "Широта с последнего визита"},
-        {"name": "lon", "type": "float", "description": "Долгота с последнего визита"},
-        {"name": "total_capacity_liters", "type": "float", "description": "Общая ёмкость баков на вышке"},
-        {"name": "historical_cph", "type": "float", "description": "Средний исторический расход топлива в час. Рассчитан из истории за 6 месяцев. Если пользователь спрашивает про вышки 'без исторического расхода' или 'с нулевым расходом', фильтруй по значению 0.0."},
-        {"name": "rated_cph_max", "type": "float", "description": "Паспортный (номинальный) расход генераторов. Значение 0.0 означает отсутствие паспортных данных"},
-        {"name": "gensets_count", "type": "integer", "description": "Количество, установленных на вышке генераторов"},
-        {"name": "g1_kva", "type": "float", "description": "Заявленная мощность основного генератора G1 в кВА"},
-        {"name": "g2_kva", "type": "float", "description": "Заявленная мощность резервного генератора G2 в кВА"},
-        {"name": "last_refuel_timestamp", "type": "string", "description": "Дата последнего визита с показанием"},
-        {"name": "fuel_level_after_refuel", "type": "float", "description": "Итоговый остаток топлива в баках после заправки (абсолютный уровень, а не объем залитого топлива)"},
-        {"name": "current_fuel_estimate", "type": "float", "description": "Расчётный остаток топлива на текущий момент"},
-        {"name": "actual_cph_last_run", "type": "float", "description": "Расход между последними двумя визитами"},
-        {"name": "dynamic_cph_trend", "type": "float", "description": "Средний расход топлива за последние 30 дней"},
-        {"name": "tte_hours", "type": "float", "description": "Время до опустошения бака в часах (для аналитики)"},
-        {"name": "tte_deadline_sec", "type": "integer", "description": "Время до опустошения в секундах"},
-        {"name": "solver_priority", "type": "string", "description": "Категория срочности для маршрутизатора", "enum": ["critical", "planned", "nominal"]},
+        {"name": "region", "type": "string", "description": "Normalized region name"},
+        {"name": "lat", "type": "float", "description": "Latitude from the last visit"},
+        {"name": "lon", "type": "float", "description": "Longitude from the last visit"},
+        {"name": "total_capacity_liters", "type": "float", "description": "Total tank capacity on the tower"},
+        {"name": "historical_cph", "type": "float", "description": "Average historical fuel consumption per hour. Calculated from 6 months history. If the user asks for towers 'without historical consumption' or 'with zero consumption', filter by value 0.0."},
+        {"name": "rated_cph_max", "type": "float", "description": "Rated (nominal) generator fuel consumption. A value of 0.0 means missing rated data"},
+        {"name": "gensets_count", "type": "integer", "description": "Number of generators installed on the tower"},
+        {"name": "g1_kva", "type": "float", "description": "Declared capacity of the main generator G1 in kVA"},
+        {"name": "g2_kva", "type": "float", "description": "Declared capacity of the backup generator G2 in kVA"},
+        {"name": "last_refuel_timestamp", "type": "string", "description": "Date of the last visit with a reading"},
+        {"name": "fuel_level_after_refuel", "type": "float", "description": "Final fuel level in tanks after refueling (absolute level, not filled volume)"},
+        {"name": "current_fuel_estimate", "type": "float", "description": "Estimated remaining fuel at the current moment"},
+        {"name": "actual_cph_last_run", "type": "float", "description": "Consumption between the last two visits"},
+        {"name": "dynamic_cph_trend", "type": "float", "description": "Average fuel consumption over the last 30 days"},
+        {"name": "tte_hours", "type": "float", "description": "Time to empty in hours (for analytics)"},
+        {"name": "tte_deadline_sec", "type": "integer", "description": "Time to empty in seconds"},
+        {"name": "solver_priority", "type": "string", "description": "Urgency category for the router", "enum": ["critical", "planned", "nominal"]},
         {
           "name": "service_parameters",
           "type": "object",
-          "description": "Логистические параметры и время на сервисное обслуживание вышки",
+          "description": "Logistics parameters and service time for the tower",
           "properties": [
-            {"name": "base_setup_sec", "type": "integer", "description": "Константа времени на подготовку к заливке"},
-            {"name": "pump_rate_lps", "type": "float", "description": "Константа скорости налива л/с"},
-            {"name": "estimated_max_service_time_sec", "type": "float", "description": "Расчетное время обслуживания для маршрутизатора в секундах"},
-            {"name": "fill_volume_l", "type": "float", "description": "Требуемый объем заливки до полного бака"}
+            {"name": "base_setup_sec", "type": "integer", "description": "Time constant for setup before filling"},
+            {"name": "pump_rate_lps", "type": "float", "description": "Pumping speed constant l/s"},
+            {"name": "estimated_max_service_time_sec", "type": "float", "description": "Estimated service time for the router in seconds"},
+            {"name": "fill_volume_l", "type": "float", "description": "Required fill volume up to full tank"}
           ]
         }
       ]
     },
     "Genset": {
-      "description": "Генератор, установленный на физической вышке.",
+      "description": "Generator installed on a physical tower.",
       "properties": [
-        {"name": "name", "type": "string", "description": "Имя генератора из визита"},
-        {"name": "capacity_liters", "type": "float", "description": "Ёмкость бака конкретного генератора"},
-        {"name": "fuel_before", "type": "float", "description": "Показание уровня топлива до заливки"},
-        {"name": "fuel_after", "type": "float", "description": "Показание уровня топлива после заливки"}
+        {"name": "name", "type": "string", "description": "Generator name from the visit"},
+        {"name": "capacity_liters", "type": "float", "description": "Tank capacity of a specific generator"},
+        {"name": "fuel_before", "type": "float", "description": "Fuel level reading before filling"},
+        {"name": "fuel_after", "type": "float", "description": "Fuel level reading after filling"}
       ]
     },
     "MasterDataIssue": {
-      "description": "Проблемы в данных бухгалтерии.",
+      "description": "Accounting data issues.",
       "properties": [
-        {"name": "duplicate_ids", "type": "array", "description": "Массив ID вышек с дублирующимся Id Number"},
-        {"name": "missing_cph_active", "type": "array", "description": "Массив ID вышек с нулевым CPH, присутствующих в визитах"},
-        {"name": "missing_cph_orphan", "type": "array", "description": "Массив ID вышек с нулевым CPH, отсутствующих в визитах"},
-        {"name": "cph_exceeds_rated", "type": "array", "description": "Массив ID вышек, у которых исторический средний расход выше паспортного"}
+        {"name": "duplicate_ids", "type": "array", "description": "Array of tower IDs with duplicate Id Number"},
+        {"name": "missing_cph_active", "type": "array", "description": "Array of tower IDs with zero CPH present in visits"},
+        {"name": "missing_cph_orphan", "type": "array", "description": "Array of tower IDs with zero CPH absent from visits"},
+        {"name": "cph_exceeds_rated", "type": "array", "description": "Array of tower IDs where historical average consumption exceeds rated capacity"}
       ]
     },
     "DynamicDataIssue": {
-      "description": "Проблемы в данных визитов и статистика фильтрации.",
+      "description": "Visit data issues and filtering statistics.",
       "properties": [
-        {"name": "sites_missing_capacity", "type": "array", "description": "Массив ID вышек: ёмкость бака не определена"},
-        {"name": "sites_missing_reading", "type": "array", "description": "Массив ID вышек: нет валидного показания топлива"},
-        {"name": "sites_missing_coordinates", "type": "array", "description": "Массив ID вышек: нет ни одного визита с заполненными координатами"},
-        {"name": "sites_fuel_exceeds_capacity", "type": "array", "description": "Массив ID вышек: показание больше ёмкости бака"},
-        {"name": "sites_actual_cph_efficiency_warning", "type": "array", "description": "Массив ID вышек: разовый/краткосрочный скачок расхода топлива"},
-        {"name": "sites_dynamic_cph_efficiency_warning", "type": "array", "description": "Массив ID вышек: устойчивый/долгосрочный рост расхода топлива"},
+        {"name": "sites_missing_capacity", "type": "array", "description": "Array of tower IDs: tank capacity undefined"},
+        {"name": "sites_missing_reading", "type": "array", "description": "Array of tower IDs: no valid fuel reading"},
+        {"name": "sites_missing_coordinates", "type": "array", "description": "Array of tower IDs: no visits with filled coordinates"},
+        {"name": "sites_fuel_exceeds_capacity", "type": "array", "description": "Array of tower IDs: reading exceeds tank capacity"},
+        {"name": "sites_actual_cph_efficiency_warning", "type": "array", "description": "Array of tower IDs: one-time/short-term fuel consumption spike"},
+        {"name": "sites_dynamic_cph_efficiency_warning", "type": "array", "description": "Array of tower IDs: sustained/long-term fuel consumption growth"},
         {
           "name": "telemetry_glitches",
           "type": "object",
-          "description": "Статистика анти-глитч фильтра",
+          "description": "Anti-glitch filter statistics",
           "properties": [
-            {"name": "total_visits", "type": "integer", "description": "Всего визитов до фильтрации"},
-            {"name": "valid_visits", "type": "integer", "description": "Осталось после фильтрации"},
-            {"name": "glitches_caught", "type": "integer", "description": "Количество отфильтрованных вышек как дубли/глитчи"}
+            {"name": "total_visits", "type": "integer", "description": "Total visits before filtering"},
+            {"name": "valid_visits", "type": "integer", "description": "Remaining after filtering"},
+            {"name": "glitches_caught", "type": "integer", "description": "Number of towers filtered as duplicates/glitches"}
           ]
         }
       ]
     },
     "RegisterDataIssue": {
-      "description": "Проблемы несоответствия данных бухгалтерии и визитов.",
+      "description": "Data mismatch issues between accounting and visits.",
       "properties": [
         {
           "name": "ghost_sites",
           "type": "array",
-          "description": "Массив ID вышек, которые есть в визитах, но нет в бухгалтерии"
+          "description": "Array of tower IDs present in visits but absent in accounting"
         },
         {
           "name": "region_names_normalized",
           "type": "object",
-          "description": "Словарь нормализованных имен регионов, где ключ — каноничное имя, а значение — массив вариантов написания"
+          "description": "Dictionary of normalized region names where the key is the canonical name and the value is an array of spelling variations"
         },
         {
           "name": "regions_unmatched",
           "type": "array",
-          "description": "Массив объектов: регионы, встреченные только в одном источнике",
+          "description": "Array of objects: regions encountered in only one source",
           "items": {
             "type": "object",
             "properties": [
-              {"name": "month", "type": "string", "description": "Месяц (например, 2025-November)"},
-              {"name": "region", "type": "string", "description": "Название региона"},
-              {"name": "source", "type": "string", "description": "Источник проблемы: accounting_only или calculated_only"}
+              {"name": "month", "type": "string", "description": "Month (e.g., 2025-November)"},
+              {"name": "region", "type": "string", "description": "Region name"},
+              {"name": "source", "type": "string", "description": "Issue source: accounting_only or calculated_only"}
             ]
           }
         },
         {
           "name": "possible_region_aliases",
           "type": "array",
-          "description": "Массив объектов: кандидаты на объединение регионов",
+          "description": "Array of objects: candidates for region merging",
           "items": {
             "type": "object",
             "properties": [
-              {"name": "month", "type": "string", "description": "Месяц (например, 2025-November)"},
-              {"name": "accounting_name", "type": "string", "description": "Название региона, взятое напрямую из бухгалтерии"},
-              {"name": "calculated_name", "type": "string", "description": "Название региона в расчете по визитам"}
+              {"name": "month", "type": "string", "description": "Month (e.g., 2025-November)"},
+              {"name": "accounting_name", "type": "string", "description": "Region name taken directly from accounting"},
+              {"name": "calculated_name", "type": "string", "description": "Region name calculated from visits"}
             ]
           }
         }
       ]
     },
     "RegionalReport": {
-      "description": "Сверка расчёта из визитов и бухгалтерии в разрезе месяцев и регионов.",
+      "description": "Reconciliation of calculation from visits and accounting by months and regions.",
       "properties": [
         {
           "name": "regional_consumption_calculated",
           "type": "object",
-          "description": "Расход, посчитанный из визитов. Ключ первого уровня — месяц.",
+          "description": "Consumption calculated from visits. First level key is month.",
           "additionalProperties": {
             "type": "object",
-            "description": "Ключ второго уровня — регион.",
+            "description": "Second level key is region.",
             "additionalProperties": {
               "type": "object",
               "properties": [
-                {"name": "consumption_l", "type": "float", "description": "Суммарный расход региона за месяц, л"},
-                {"name": "sites_counted", "type": "integer", "description": "Кол-во вышек, вошедших в расчёт"}
+                {"name": "consumption_l", "type": "float", "description": "Total region consumption for the month, L"},
+                {"name": "sites_counted", "type": "integer", "description": "Number of towers included in calculation"}
               ]
             }
           }
@@ -161,17 +161,17 @@
         {
           "name": "regional_accounting_summary",
           "type": "object",
-          "description": "Сводка из бухгалтерии по региону и месяцу, без пересчёта. Ключ первого уровня — месяц.",
+          "description": "Accounting summary by region and month, without recalculation. First level key is month.",
           "additionalProperties": {
             "type": "object",
-            "description": "Ключ второго уровня — регион.",
+            "description": "Second level key is region.",
             "additionalProperties": {
               "type": "object",
               "properties": [
-                {"name": "fuel_consumption_qty_l", "type": "float", "description": "Расход топлива по бухгалтерии, л"},
-                {"name": "fuel_consumption_cost_usd", "type": "float", "description": "Стоимость расхода в USD"},
-                {"name": "fuel_delivered_qty_l", "type": "float", "description": "Доставлено топлива, л"},
-                {"name": "total_sites", "type": "integer", "description": "Кол-во вышек региона по бухгалтерии"}
+                {"name": "fuel_consumption_qty_l", "type": "float", "description": "Fuel consumption according to accounting, L"},
+                {"name": "fuel_consumption_cost_usd", "type": "float", "description": "Consumption cost in USD"},
+                {"name": "fuel_delivered_qty_l", "type": "float", "description": "Fuel delivered, L"},
+                {"name": "total_sites", "type": "integer", "description": "Number of region towers according to accounting"}
               ]
             }
           }
@@ -179,18 +179,18 @@
         {
           "name": "regional_accounting_mismatch",
           "type": "array",
-          "description": "Массив объектов со сравнением расчетов по визитам и данных бухгалтерии.",
+          "description": "Array of objects comparing calculations from visits and accounting data.",
           "items": {
             "type": "object",
             "properties": [
-              {"name": "month", "type": "string", "description": "Месяц с расхождением (например, 2025-November)"},
-              {"name": "region", "type": "string", "description": "Регион с расхождением"},
-              {"name": "accounting_qty_l", "type": "float", "description": "Расход по бухгалтерии, л"},
-              {"name": "calculated_qty_l", "type": "float", "description": "Расход, посчитанный по визитам, л"},
-              {"name": "deviation_pct", "type": "float", "description": "Отклонение расчёта от бухгалтерии, %"},
-              {"name": "sites_counted_in_visits", "type": "integer", "description": "Кол-во вышек, учтённых в расчёте"},
-              {"name": "sites_expected_by_accounting", "type": "integer", "description": "Кол-во вышек по данным бухгалтерии"},
-              {"name": "likely_coverage_gap", "type": "boolean", "description": "true - расхождение из-за нехватки визитов; false - покрытие достаточное, нужен разбор"}
+              {"name": "month", "type": "string", "description": "Month with discrepancy (e.g., 2025-November)"},
+              {"name": "region", "type": "string", "description": "Region with discrepancy"},
+              {"name": "accounting_qty_l", "type": "float", "description": "Consumption according to accounting, L"},
+              {"name": "calculated_qty_l", "type": "float", "description": "Consumption calculated from visits, L"},
+              {"name": "deviation_pct", "type": "float", "description": "Calculation deviation from accounting, %"},
+              {"name": "sites_counted_in_visits", "type": "integer", "description": "Number of towers accounted for in calculation"},
+              {"name": "sites_expected_by_accounting", "type": "integer", "description": "Number of towers according to accounting data"},
+              {"name": "likely_coverage_gap", "type": "boolean", "description": "true - discrepancy due to lack of visits; false - coverage is sufficient, investigation required"}
             ]
           }
         }
@@ -198,21 +198,21 @@
     },
     "HistoricalAnalytics": {
       "type": "object",
-      "description": "История оповещений и простоев. Ключ первого уровня — ID вышки.",
+      "description": "History of alarms and downtime. First level key is tower ID.",
       "additionalProperties": {
         "type": "object",
-        "description": "Ключ второго уровня — месяц отчета (в формате YYYY-MM).",
+        "description": "Second level key is report month (in YYYY-MM format).",
         "additionalProperties": {
           "type": "object",
           "properties": [
-            {"name": "alarms_count", "type": "integer", "description": "Кол-во оповещений за месяц"},
-            {"name": "total_downtime_hours", "type": "float", "description": "Суммарный простой за месяц в часах"}
-            ]
+            {"name": "alarms_count", "type": "integer", "description": "Number of alarms per month"},
+            {"name": "total_downtime_hours", "type": "float", "description": "Total downtime for the month in hours"}
+          ]
         }
       }
     },
     "RouteData": {
-      "description": "ЗАГОТОВКА, не наполняется. Один заезд машины на вышку из route_solution.json.",
+      "description": "STUB, not populated. Single vehicle visit to a tower from route_solution.json.",
       "status": "NOT_WIRED",
       "key": "vehicle_id + site_id",
       "properties": {
@@ -227,7 +227,7 @@
         },
         "arrival_slack_min": {
           "type": "float|null",
-          "note": "буфер до дедлайна — индикатор риска, нигде больше не считается"
+          "note": "buffer until deadline — risk indicator, not calculated anywhere else"
         },
         "delivered_liters": {
           "type": "int"
@@ -236,203 +236,203 @@
     },
     "SummaryReport": {
       "type": "object",
-      "description": "Плоские счетчики для дашборда.",
+      "description": "Flat counters for dashboard.",
       "properties": [
-        {"name": "count_duplicate_ids", "type": "integer", "description": "Количество дублей ID Number в бухгалтерии"},
-        {"name": "count_missing_cph_active", "type": "integer", "description": "Количество вышек без CPH, присутствующих в визитах"},
-        {"name": "count_missing_cph_orphan", "type": "integer", "description": "Количество вышек без CPH, отсутствующих в визитах"},
-        {"name": "count_cph_exceeds_rated", "type": "integer", "description": "Количество вышек, где исторический средний расход превышает номинальный"},
-        {"name": "count_missing_capacity", "type": "integer", "description": "Количество вышек без данных о емкости бака"},
-        {"name": "count_missing_reading", "type": "integer", "description": "Количество вышек без валидных показаний топлива"},
-        {"name": "count_missing_coordinates", "type": "integer", "description": "Количество вышек без координат"},
-        {"name": "count_fuel_exceeds_capacity", "type": "integer", "description": "Количество вышек, где показания превышают емкость"},
-        {"name": "count_actual_cph_efficiency_warning", "type": "integer", "description": "Количество вышек с разовым скачком расхода"},
-        {"name": "count_dynamic_cph_efficiency_warning", "type": "integer", "description": "Количество вышек со стабильным ростом расхода"},
-        {"name": "count_glitches_found", "type": "integer", "description": "Количество отфильтрованных глитчей"},
-        {"name": "count_ghost_sites", "type": "integer", "description": "Количество вышек, присутствующих в визитах, но отсутствующих в бухгалтерии"},
-        {"name": "count_regions_unmatched", "type": "integer", "description": "Количество регионов, встреченных только в одном источнике"},
-        {"name": "count_regional_mismatch", "type": "integer", "description": "Количество регионов с расхождением больше допуска"},
-        {"name": "count_sites_with_alarms", "type": "integer", "description": "Количество вышек хотя бы с одним оповещением"}
+        {"name": "count_duplicate_ids", "type": "integer", "description": "Count of duplicate ID Numbers in accounting"},
+        {"name": "count_missing_cph_active", "type": "integer", "description": "Count of towers without CPH present in visits"},
+        {"name": "count_missing_cph_orphan", "type": "integer", "description": "Count of towers without CPH absent from visits"},
+        {"name": "count_cph_exceeds_rated", "type": "integer", "description": "Count of towers where historical average consumption exceeds nominal"},
+        {"name": "count_missing_capacity", "type": "integer", "description": "Count of towers missing tank capacity data"},
+        {"name": "count_missing_reading", "type": "integer", "description": "Count of towers missing valid fuel readings"},
+        {"name": "count_missing_coordinates", "type": "integer", "description": "Count of towers missing coordinates"},
+        {"name": "count_fuel_exceeds_capacity", "type": "integer", "description": "Count of towers where readings exceed capacity"},
+        {"name": "count_actual_cph_efficiency_warning", "type": "integer", "description": "Count of towers with a one-time consumption spike"},
+        {"name": "count_dynamic_cph_efficiency_warning", "type": "integer", "description": "Count of towers with stable consumption growth"},
+        {"name": "count_glitches_found", "type": "integer", "description": "Count of filtered glitches"},
+        {"name": "count_ghost_sites", "type": "integer", "description": "Count of towers present in visits but absent in accounting"},
+        {"name": "count_regions_unmatched", "type": "integer", "description": "Count of regions encountered in only one source"},
+        {"name": "count_regional_mismatch", "type": "integer", "description": "Count of regions with discrepancy above tolerance"},
+        {"name": "count_sites_with_alarms", "type": "integer", "description": "Count of towers with at least one alarm"}
       ]
     }
   },
   "relations": [
     {
-    "source": "Site",
-    "type": "HAS_GENSET",
-    "target": "Genset",
-    "cardinality": "1:N"
+      "source": "Site",
+      "type": "HAS_GENSET",
+      "target": "Genset",
+      "cardinality": "1:N"
     },
     {
-    "source": "Site",
-    "type": "HAS_HISTORY",
-    "target": "HistoricalAnalytics",
-    "cardinality": "1:1"
+      "source": "Site",
+      "type": "HAS_HISTORY",
+      "target": "HistoricalAnalytics",
+      "cardinality": "1:1"
     },
     {
-    "source": "Site",
-    "type": "INCLUDED_IN_REPORT",
-    "target": "RegionalReport",
-    "cardinality": "N:1"
+      "source": "Site",
+      "type": "INCLUDED_IN_REPORT",
+      "target": "RegionalReport",
+      "cardinality": "N:1"
     },
     {
-    "source": "MasterDataIssue",
-    "type": "FLAGS_SITE",
-    "target": "Site",
-    "cardinality": "1:N"
+      "source": "MasterDataIssue",
+      "type": "FLAGS_SITE",
+      "target": "Site",
+      "cardinality": "1:N"
     },
     {
-    "source": "DynamicDataIssue",
-    "type": "FLAGS_SITE",
-    "target": "Site",
-    "cardinality": "1:N"
+      "source": "DynamicDataIssue",
+      "type": "FLAGS_SITE",
+      "target": "Site",
+      "cardinality": "1:N"
     },
     {
-    "source": "RegisterDataIssue",
-    "type": "FLAGS_SITE",
-    "target": "Site",
-    "cardinality": "1:N"
+      "source": "RegisterDataIssue",
+      "type": "FLAGS_SITE",
+      "target": "Site",
+      "cardinality": "1:N"
     },
     {
-    "source": "HistoricalAnalytics",
-    "type": "FLAGS_SITE",
-    "target": "Site",
-    "cardinality": "1:N"
+      "source": "HistoricalAnalytics",
+      "type": "FLAGS_SITE",
+      "target": "Site",
+      "cardinality": "1:N"
     },
     {
-    "source": "RegisterDataIssue",
-    "type": "AFFECTS_REPORTING",
-    "target": "RegionalReport",
-    "cardinality": "1:N"
+      "source": "RegisterDataIssue",
+      "type": "AFFECTS_REPORTING",
+      "target": "RegionalReport",
+      "cardinality": "1:N"
     },
     {
-    "source": "SummaryReport",
-    "type": "SUMMARIZES",
-    "target": "MasterDataIssue",
-    "cardinality": "1:1"
+      "source": "SummaryReport",
+      "type": "SUMMARIZES",
+      "target": "MasterDataIssue",
+      "cardinality": "1:1"
     },
     {
-    "source": "SummaryReport",
-    "type": "SUMMARIZES",
-    "target": "DynamicDataIssue",
-    "cardinality": "1:1"
+      "source": "SummaryReport",
+      "type": "SUMMARIZES",
+      "target": "DynamicDataIssue",
+      "cardinality": "1:1"
     },
     {
-    "source": "SummaryReport",
-    "type": "SUMMARIZES",
-    "target": "RegisterDataIssue",
-    "cardinality": "1:1"
+      "source": "SummaryReport",
+      "type": "SUMMARIZES",
+      "target": "RegisterDataIssue",
+      "cardinality": "1:1"
     },
     {
-    "source": "SummaryReport",
-    "type": "SUMMARIZES",
-    "target": "HistoricalAnalytics",
-    "cardinality": "1:1"
+      "source": "SummaryReport",
+      "type": "SUMMARIZES",
+      "target": "HistoricalAnalytics",
+      "cardinality": "1:1"
     },
     {
-    "source": "Site",
-    "type": "SERVED_BY_ROUTE",
-    "target": "RouteData",
-    "cardinality": "1:N",
-    "status": "NOT_WIRED"
+      "source": "Site",
+      "type": "SERVED_BY_ROUTE",
+      "target": "RouteData",
+      "cardinality": "1:N",
+      "status": "NOT_WIRED"
     }
   ],
   "tools": {
     "get_site_summary": {
       "type": "lookup",
       "source": "telemetry[]",
-      "description": "Получить полную паспортную сводку и текущую телеметрию по конкретной вышке по ее ID (site_id). Используй, когда пользователь спрашивает про конкретную вышку (например, 'покажи вышку X', 'что с вышкой Y').",
+      "description": "Get full passport summary and current telemetry for a specific tower by its ID (site_id). Use when the user asks about a specific tower (e.g., 'show tower X', 'what's up with tower Y').",
       "parameters": {
         "match_field": {
           "type": "string",
-          "description": "Поле для поиска (всегда передавай 'site_id')",
+          "description": "Field to search (always pass 'site_id')",
           "enum": ["site_id"]
         },
         "match_value": {
           "type": "string",
-          "description": "Идентификатор вышки"
+          "description": "Tower identifier"
         }
       }
     },
     "get_regional_accounting_mismatch": {
       "type": "filter",
       "source": "audit.regional_report.regional_accounting_mismatch[]",
-      "description": "Получить сводку расхождений между логистикой и бухгалтерией (в литрах и %). Используй для ответов на вопросы о потерях и финансовых несоответствиях.",
+      "description": "Get summary of discrepancies between logistics and accounting (in liters and %). Use to answer questions about losses and financial mismatches.",
       "parameters": {
         "field": {
           "type": "string",
-          "description": "Поле для фильтрации (передавай 'month' или 'region')",
+          "description": "Field to filter by (pass 'month' or 'region')",
           "enum": ["month", "region"]
         },
         "value": {
           "type": "string",
-          "description": "Значение (например, '2025-November' для месяца или 'South' для региона)"
+          "description": "Value (e.g., '2025-November' for month or 'South' for region)"
         }
       }
     },
     "get_regional_consumption_calculated": {
       "type": "lookup",
       "source": "audit.regional_report.regional_consumption_calculated",
-      "description": "Получить чистый расчет расхода топлива на основе визитов логистики за конкретный месяц. Возвращает данные по всем регионам.",
+      "description": "Get net fuel consumption calculation based on logistics visits for a specific month. Returns data for all regions.",
       "parameters": {
         "match_field": {
           "type": "string",
-          "description": "Служебное поле (передавай 'month')",
+          "description": "System field (pass 'month')",
           "enum": ["month"]
         },
         "match_value": {
           "type": "string",
-          "description": "Месяц отчета (например, '2025-October')"
+          "description": "Report month (e.g., '2025-October')"
         }
       }
     },
     "get_regional_accounting_summary": {
       "type": "lookup",
       "source": "audit.regional_report.regional_accounting_summary",
-      "description": "Получить сводку из бухгалтерии (расход, стоимость, кол-во вышек) за конкретный месяц, без логистического пересчета.",
+      "description": "Get summary from accounting (consumption, cost, count of towers) for a specific month, without logistics recalculation.",
       "parameters": {
         "match_field": {
           "type": "string",
-          "description": "Служебное поле (передавай 'month')",
+          "description": "System field (pass 'month')",
           "enum": ["month"]
         },
         "match_value": {
           "type": "string",
-          "description": "Месяц отчета (например, '2025-November')"
+          "description": "Report month (e.g., '2025-November')"
         }
       }
     },
     "get_site_historical_analytics": {
       "type": "lookup",
       "source": "audit.historical_analytics",
-      "description": "Получить историческую аналитику (количество алармов, время простоя по месяцам) для конкретной вышки. Используй для анализа истории инцидентов.",
+      "description": "Get historical analytics (number of alarms, downtime duration by months) for a specific tower. Use for analyzing incident history.",
       "parameters": {
         "match_field": {
           "type": "string",
-          "description": "Всегда передавай 'site_id'",
+          "description": "Always pass 'site_id'",
           "enum": ["site_id"]
         },
         "match_value": {
           "type": "string",
-          "description": "Идентификатор вышки - ID"
+          "description": "Tower identifier - ID"
         }
       }
     },
     "get_global_summary_report": {
       "type": "get_all",
       "source": "audit.summary_report",
-      "description": "Получить глобальный сводный отчет (summary_report) по всем проблемам в системе. Возвращает готовые счетчики. Используй для ответов на вопросы о глобальной статистике проблем.",
+      "description": "Get global summary report (summary_report) for all issues in the system. Returns ready-made counters. Use to answer questions about global problem statistics.",
       "parameters": {}
     },    
     "count_sites": {
       "type": "count",
       "source": "telemetry[]",
       "target_entity": "Site",
-      "description": "Посчитать количество вышек по условиям — ключам телеметрии. Передавай словарь условий в filters.",
+      "description": "Count the number of towers based on conditions — telemetry keys. Pass condition dictionary in filters.",
       "parameters": {
         "filters": {
           "type": "object",
-          "description": "Словарь условий. ВАЖНО: для неравенств (больше/меньше) ОБЯЗАТЕЛЬНО передавай вложенный словарь: {'имя_поля': {'operator': 'gt/lt/gte/lte', 'value': число}}."
+          "description": "Condition dictionary. IMPORTANT: for inequalities (greater/less) ALWAYS pass a nested dictionary: {'field_name': {'operator': 'gt/lt/gte/lte', 'value': number}}."
         }
       }
     },
@@ -440,11 +440,11 @@
       "type": "filter",
       "source": "telemetry[]",
       "target_entity": "Site",
-      "description": "Получить список данных о вышках по условиям — ключам телеметрии. Передавай словарь условий в filters.",
+      "description": "Get a list of tower data based on conditions — telemetry keys. Pass condition dictionary in filters.",
       "parameters": {
         "filters": {
           "type": "object",
-          "description": "Словарь условий. ВАЖНО: для неравенств (больше/меньше) ОБЯЗАТЕЛЬНО передавай вложенный словарь: {'имя_поля': {'operator': 'gt/lt/gte/lte', 'value': число}}."
+          "description": "Condition dictionary. IMPORTANT: for inequalities (greater/less) ALWAYS pass a nested dictionary: {'field_name': {'operator': 'gt/lt/gte/lte', 'value': number}}."
         }
       }
     },
@@ -452,24 +452,24 @@
       "type": "filter",
       "source": "telemetry[]",
       "target_entity": "Site",
-      "description": "Получить отсортированный список (топ, максимум, минимум). Используй ТОЛЬКО для аналитических запросов типа 'топ 5', 'самая проблемная вышка', 'отсортируй по...'.",
+      "description": "Get a sorted list (top, maximum, minimum). Use ONLY for analytical queries like 'top 5', 'most problematic tower', 'sort by...'.",
       "parameters": {
         "filters": {
           "type": "object",
-          "description": "Словарь условий фильтрации."
+          "description": "Filter conditions dictionary."
         },
         "sort_by": {
           "type": "string",
-          "description": "ОБЯЗАТЕЛЬНО. Поле для сортировки (например, historical_cph)."
+          "description": "REQUIRED. Field for sorting (e.g., historical_cph)."
         },
         "sort_order": {
           "type": "string",
           "enum": ["asc", "desc"],
-          "description": "Порядок: 'asc' (минимумы) или 'desc' (максимумы, топы)."
+          "description": "Order: 'asc' (minimums) or 'desc' (maximums, tops)."
         },
         "top_n": {
           "type": "integer",
-          "description": "ОБЯЗАТЕЛЬНО. Количество записей (например, 5 для 'топ 5', 1 для 'самая...')."
+          "description": "REQUIRED. Number of records (e.g., 5 for 'top 5', 1 for 'most...')."
         }
       }
     }
