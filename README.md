@@ -1,8 +1,10 @@
-# Ontological AI Router
+# Ontology-Based AI Analytics Router
+
+**Status: Public research prototype**
 
 This repository is a public, synthetic-data prototype of an ontology-backed AI analytics router for telecom tower operations. It demonstrates how an LLM can select tools from a business schema while deterministic Python performs the calculations.
 
-The dataset is deliberately synthetic and contains no production identifiers or telemetry. The original architecture remains the point of the project: isolate messy operational data, describe it with an ontology, and keep numeric execution outside the language model.
+The dataset is deliberately synthetic and contains no production identifiers or telemetry. This repository is published for research, discussion, and reproducibility; it is not presented as a production-ready platform. The original architecture remains the point of the project: isolate messy operational data, describe it with an ontology, and keep numeric execution outside the language model.
 
 ## Architecture
 
@@ -33,7 +35,7 @@ data/
   generate_synthetic_data.py       # Reproducible generator (seed 42)
   synthetic_telemetry.json         # Public synthetic snapshot
 docs/
-  structure.txt                    # Data structure and Level 1 contract
+  structure.txt                    # Level 1 data structure and contract
 validation.md                      # Ten tested business questions and outputs
 ontology_schema.json               # Entities, relationships, and tool registry
 interpreter.py                     # Deterministic declaration interpreter
