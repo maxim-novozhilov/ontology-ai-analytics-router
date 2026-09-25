@@ -9,6 +9,7 @@ site IDs, regions, or proprietary metrics.
 import json
 import random
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # Reproducibility for demo dataset
 random.seed(42)
@@ -36,6 +37,7 @@ FLAG_POOL = [
 ]
 
 CURRENT_TIME = datetime(2026, 1, 1)
+OUTPUT_PATH = Path(__file__).resolve().parent / "synthetic_telemetry.json"
 
 
 def make_site(i: int) -> dict:
@@ -268,7 +270,7 @@ def build_audit(sites: list) -> dict:
 if __name__ == "__main__":
     sites = [make_site(i) for i in range(1, N_SITES + 1)]
     output = {"telemetry": sites, "audit": build_audit(sites)}
-    with open("synthetic_telemetry.json", "w", encoding="utf-8") as f:
+    with OUTPUT_PATH.open("w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
     print(
         f"Generated {N_SITES} synthetic sites -> synthetic_telemetry.json"
@@ -282,5 +284,3 @@ if __name__ == "__main__":
     print(
         f"nominal: {sum(1 for s in sites if s['solver_priority'] == 'nominal')}"
     )
-
-```
