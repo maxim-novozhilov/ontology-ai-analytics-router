@@ -1,24 +1,8 @@
 """
-Semantic Router + Meta-Agent (self-extension), Level 3 Prototype.
+Semantic Router (Single-Role Prototype), Level 3.
 
 Requires: pip install mistralai
-Requires: MISTRAL_API_KEY environment variable
-(Free key: console.mistral.ai -> La Plateforme -> Experiment tier)
-
-Logic:
-  1. Build a list of available tools from ontology_schema.json -> tools_registry
-     (lookup/filter/count types executed by the universal interpreter)
-     + one specialized tool `write_new_tool` for self-extension.
-  2. Pass the user's question + this tool list to the model (function calling).
-  3. If the model selects an existing lookup/filter/count tool — execute via
-     interpreter.py, return the result to the model, and let it formulate
-     the final answer.
-  4. If the model invokes `write_new_tool` — no pre-declared tool fits the query.
-     Write the generated code to tools/<name>.py, append a new entry to
-     tools_registry (type: function), execute, and show the result.
-
-Note: Mistral's free tier is rate-limited (few requests per minute).
-A pause between consecutive test queries may be required — see time.sleep() in main().
+Requires environment variable: MISTRAL_API_KEY
 """
 
 import json
@@ -32,224 +16,225 @@ from interpreter import execute_registry_entry, _load_json
 
 BASE_DIR = Path(__file__).parent
 SCHEMA_PATH = BASE_DIR / "ontology_schema.json"
-DATA_PATH = BASE_DIR / "data" / "telemetry.json"
+DATA_PATH = BASE_DIR / "data" / "real_telemetry.json"
 TOOLS_DIR = BASE_DIR / "tools"
+LOG_PATH = BASE_DIR / "suggested_tools.json"
 
 MODEL = os.environ.get("ONTOLOGY_MODEL", "mistral-large-latest")
 
 
 def build_mistral_tools(schema: dict) -> list:
-    """Transforms declarative tools_registry entries into function calling format."""
-
-    # Specific field hints to prevent the model from blindly guessing field names
-    FIELD_HINTS = {
-        "get_site_by_id": {
-            "match_field": "Always 'site_id'.",
-            "match_value": "The site_id value, e.g., 'SITE-0001'.",
-        },
-        "get_sites_by_priority": {
-            "field": "Always 'solver_priority'.",
-            "value": "One of: 'critical', 'planned', 'nominal'.",
-        },
-        "get_sites_by_flag": {
-            "field": "Always 'data_flags'.",
-            "value": (
-                "One of: missing_coordinates, ghost_site, cph_exceeds_rated, "
-                "duplicate_id, missing_cph, missing_capacity, missing_reading, "
-                "fuel_exceeds_capacity, actual_cph_efficiency_warning, "
-                "dynamic_cph_efficiency_warning."
-            ),
-        },
-    }
-
+    """Convert declarative schema entries into Mistral function calling format."""
     tools = []
-    for name, entry in schema["tools_registry"].items():
-        if not isinstance(entry, dict):
-            continue  # Service fields like "_note" are not tool declarations
-        hints = FIELD_HINTS.get(name, {})
-
-        if entry["type"] == "lookup":
-            tools.append(
-                {
-                    "type": "function",
-                    "function": {
-                        "name": name,
-                        "description": (
-                            f"Find record(s) in {entry['source']} by exact key match."
-                        ),
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "match_field": {
-                                    "type": "string",
-                                    "description": hints.get(
-                                        "match_field", "key field name"
-                                    ),
-                                },
-                                "match_value": {
-                                    "type": "string",
-                                    "description": hints.get(
-                                        "match_value", "target value"
-                                    ),
-                                },
-                            },
-                            "required": ["match_field", "match_value"],
-                        },
-                    },
+    entities = schema.get("entities", {})
+    
+    for name, entry in schema.get("tools", {}).items():
+        if not isinstance(entry, dict) or "type" not in entry:
+            continue
+            
+        base_desc = entry.get("description", f"Выполнить {entry['type']} в источнике {entry.get('source')}")
+        properties = {}
+        required_fields = []
+        schema_params = entry.get("parameters", {})
+        target_entity = entry.get("target_entity")
+        
+        if entry["type"] == "get_all":
+            # get_all does not accept any parameters.
+            # execute_get_all(data, source) has no **kwargs, so the parameter schema is always empty.
+            pass
+        
+        elif not schema_params and entry["type"] in ["lookup", "filter", "count", "get_all"]:
+            key_field = "match_field" if entry["type"] == "lookup" else "field"
+            val_field = "match_value" if entry["type"] == "lookup" else "value"
+            
+            properties = {
+                key_field: {"type": "string", "description": "имя поля-ключа"},
+                val_field: {"type": "string", "description": "искомое значение"}
+            }
+            required_fields = [key_field, val_field]
+        else:
+            for param_name, param_data in schema_params.items():
+                prop = {
+                    "type": param_data.get("type", "string"),
+                    "description": param_data.get("description", "")
                 }
-            )
-        elif entry["type"] == "filter":
-            tools.append(
-                {
-                    "type": "function",
-                    "function": {
-                        "name": name,
-                        "description": (
-                            f"Filter records in {entry['source']} by field value."
-                        ),
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "field": {
-                                    "type": "string",
-                                    "description": hints.get(
-                                        "field", "field name for filtering"
-                                    ),
-                                },
-                                "value": {
-                                    "type": "string",
-                                    "description": hints.get(
-                                        "value", "target value"
-                                    ),
-                                },
-                            },
-                            "required": ["field", "value"],
-                        },
-                    },
-                }
-            )
-        elif entry["type"] == "count":
-            tools.append(
-                {
-                    "type": "function",
-                    "function": {
-                        "name": name,
-                        "description": entry.get(
-                            "description",
-                            f"Count records in {entry['source']} by field value.",
-                        ),
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "field": {
-                                    "type": "string",
-                                    "description": hints.get(
-                                        "field",
-                                        "field name to check (e.g., solver_priority)",
-                                    ),
-                                },
-                                "value": {
-                                    "type": "string",
-                                    "description": hints.get(
-                                        "value",
-                                        "target value (e.g., critical)",
-                                    ),
-                                },
-                            },
-                            "required": ["field", "value"],
-                        },
-                    },
-                }
-            )
+                if "enum" in param_data:
+                    prop["enum"] = param_data["enum"]
+                
+                # Dynamically pull fields from the associated entity in the graph for the 'filters' parameter
+                if param_name == "filters" and target_entity and target_entity in entities:
+                    entity_props = entities[target_entity].get("properties", [])
+                    filter_properties = {}
+                    
+                    for p in entity_props:
+                        p_name = p.get("name")
+                        p_type = p.get("type", "string")
+                        p_desc = p.get("description", "")
+                        
+                        json_type = "number" if p_type in ("float", "integer") else "string"
+                        field_schema = {
+                            "type": json_type,
+                            "description": p_desc
+                        }
+                        
+                        # Domain constraints (e.g., allowed enum values) live on the entity itself.
+                        # We inject them here to avoid duplicating data in the tools block.
+                        if "enum" in p:
+                            field_schema["enum"] = p["enum"]
+                            if "enum_descriptions" in p:
+                                mapping = "\nЗначения флагов:\n" + "\n".join(
+                                    [f"- {k}: {v}" for k, v in p["enum_descriptions"].items()]
+                                )
+                                field_schema["description"] += mapping
 
-        # Type == function with status NOT_WIRED is intentionally omitted
+                        filter_properties[p_name] = field_schema
+                    
+                    prop["properties"] = filter_properties
+                    prop["additionalProperties"] = False
 
-    # Special tool for self-extension
-    tools.append(
-        {
-            "type": "function",
-            "function": {
-                "name": "write_new_tool",
-                "description": (
-                    "Use ONLY if no existing tool can answer the question "
-                    "(e.g., aggregation/comparison is needed rather than a simple lookup/filter). "
-                    "Writes a new Python function and registers it in the ontology graph."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "tool_name": {
-                            "type": "string",
-                            "description": "snake_case name for the new tool",
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": "what the tool does",
-                        },
-                        "python_code": {
-                            "type": "string",
-                            "description": (
-                                "Complete function code def run(data, **params): ... "
-                                "data is the parsed telemetry.json (dict). "
-                                "Must return a JSON-serializable result."
-                            ),
-                        },
+                properties[param_name] = prop
+                required_fields.append(param_name)
+
+        if entry["type"] in ["lookup", "filter", "count", "get_all"]:
+            tools.append({
+                "type": "function",
+                "function": {
+                    "name": name,
+                    "description": base_desc,
+                    "parameters": {
+                        "type": "object",
+                        "properties": properties,
+                        "required": required_fields,
                     },
-                    "required": ["tool_name", "description", "python_code"],
                 },
+            })
+
+    # Append the dynamic self-extension tool
+    tools.append({
+        "type": "function",
+        "function": {
+            "name": "write_new_tool",
+            "description": (
+                "Использовать, ТОЛЬКО если ни один существующий инструмент не может ответить "
+                "на вопрос. Пишет новую Python-функцию для разового исполнения."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tool_name": {"type": "string", "description": "snake_case имя нового инструмента"},
+                    "description": {"type": "string", "description": "что делает инструмент"},
+                    "python_code": {
+                        "type": "string",
+                        "description": (
+                            "Полный код функции def run(data, **params): ... "
+                            "data — это распарсенный real_telemetry.json (dict). "
+                            "РЕАЛЬНАЯ СТРУКТУРА data (это НЕ имена сущностей графа!): "
+                            "data['telemetry'] — список вышек; data['audit'] — вложенные агрегаты "
+                            "(master_data_issues, dynamic_data_issues, register_data_issues, regional_report, "
+                            "historical_analytics, summary_report). "
+                            "НИКОГДА не используй data['Site'] или другие имена сущностей графа как ключи в data. "
+                            "КРИТИЧЕСКОЕ ПРАВИЛО 1: Возвращай ТОЛЬКО агрегированные данные. "
+                            "КРИТИЧЕСКОЕ ПРАВИЛО 2: НИКОГДА не читай файлы с диска (никаких open() и file_path). "
+                            "Твой код должен быть независимым и актуальным, работай СТРОГО с переданным словарем data."
+                        ),
+                    },
+                },
+                "required": ["tool_name", "description", "python_code"],
             },
-        }
-    )
+        },
+    })
+    
     return tools
 
 
-def handle_write_new_tool(
-    schema: dict, tool_name: str, description: str, python_code: str
-) -> dict:
-    """Self-extension: saves code, registers in ontology graph, executes, and returns result."""
+def handle_write_new_tool(schema: dict, question: str, tool_name: str, description: str, python_code: str) -> dict:
+    """Self-extension via quarantine (safe execution of generated code in memory)."""
+
+    # === EXPORT GARBAGE COLLECTION BLOCK ===
+    exports_dir = BASE_DIR / "exports"
+    if exports_dir.exists():
+        current_time = time.time()
+        # Iterate through all generated export files
+        for file_path in exports_dir.glob("*_export_*.json"):
+            # If the file was created less than 60 seconds ago, delete it
+            if current_time - file_path.stat().st_mtime < 60:
+                try:
+                    file_path.unlink()
+                    print(f"  [debug] Очистка: удалён файл {file_path.name}")
+                except OSError:
+                    pass
+    # =======================================
+
     TOOLS_DIR.mkdir(exist_ok=True)
     module_path = TOOLS_DIR / f"{tool_name}.py"
+    
     module_path.write_text(python_code, encoding="utf-8")
 
-    schema["tools_registry"][tool_name] = {
+    if "tools" not in schema:
+        schema["tools"] = {}
+        
+    schema["tools"][tool_name] = {
         "type": "function",
         "source": f"tools/{tool_name}.py",
         "description": description,
-        "origin": "self_extended",
+        "origin": "ephemeral_quarantine",
     }
-    SCHEMA_PATH.write_text(
-        json.dumps(schema, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+
+    log_entry = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "trigger_question": question,
+        "tool_name": tool_name,
+        "description": description,
+        "python_code": python_code
+    }
+    
+    with open(LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
 
     data = _load_json(str(DATA_PATH))
-    result = execute_registry_entry(schema, data, tool_name, {})
-    return {"tool_name": tool_name, "registered": True, "result": result}
+    try:
+        result = execute_registry_entry(schema, data, tool_name, {})
+        return {"tool_name": tool_name, "status": "executed_in_quarantine", "result": result}
+    except Exception as e:
+        return {"tool_name": tool_name, "status": "failed", "error": str(e)}
 
 
 def ask(question: str) -> str:
+    """Main routing function: handles user queries, API interactions, and tool executions."""
     client = Mistral(api_key=os.environ["MISTRAL_API_KEY"])
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     tools = build_mistral_tools(schema)
 
-    system = (
-        "You are a semantic router operating on top of a telecom tower refueling ontology. "
-        "You do not have direct access to raw data — only to the tools below attached "
-        "to the ontology graph. If no suitable tool exists, use write_new_tool.\n\n"
-        "CRITICAL RULE REGARDING NUMBERS: Any number in your response (count of records, "
-        "sums, averages, etc.) MUST be taken verbatim from the tool execution output. "
-        "Do not paraphrase, round, or recalculate from memory. "
-        "If a tool returns a list of N items, the answer must state exactly N "
-        "as explicitly calculated (e.g., len() of the list). If uncertain, "
-        "explicitly demonstrate the calculation step in your response."
-    )
+    # Compile a brief summary of entities and their properties for the system prompt
+    entities_summary = {}
+    for ent_name, ent_data in schema.get("entities", {}).items():
+        if not isinstance(ent_data, dict):
+            continue
+        if "properties" in ent_data and isinstance(ent_data["properties"], list):
+            props = [p.get("name") for p in ent_data["properties"] if isinstance(p, dict)]
+        else:
+            props = [ent_data.get("type", "object")]
+        entities_summary[ent_name] = props
 
+    system = (
+        "Ты — семантический маршрутизатор логистической системы. "
+        "Твоя задача — подбирать инструменты из реестра для ответа на вопросы.\n\n"
+        "ЖЕСТКИЕ ПРАВИЛА:\n"
+        "1. ВСЕГДА в первую очередь ищи готовый инструмент в реестре (lookup, filter, count).\n"
+        "2. Инструмент 'write_new_tool' разрешено вызывать ТОЛЬКО если задача требует сложной агрегации.\n"
+        "3. Не выдумывай цифры и структуру данных. Опирайся строго на схему графа:\n"
+        f"{json.dumps(entities_summary, ensure_ascii=False)}"
+    )
+    
     messages = [
         {"role": "system", "content": system},
         {"role": "user", "content": question},
     ]
 
-    for _ in range(4):  # Reflection loop limit
+    # Main reflection loop allowing the LLM to make multiple consecutive tool calls
+    for _ in range(4):
+        # Retry mechanism for API rate limiting
         for attempt in range(5):
             try:
                 response = client.chat.complete(
@@ -262,15 +247,16 @@ def ask(question: str) -> str:
             except Exception as exc:
                 if "429" in str(exc) or "rate_limited" in str(exc):
                     wait = 20 * (attempt + 1)
-                    print(f"  [debug] Rate limit encountered, waiting {wait}s...")
+                    print(f"  [debug] API limit. Ожидание {wait} сек...")
                     time.sleep(wait)
                 else:
                     raise
         else:
-            return "Failed to reach API — rate limit persisted after 5 retries."
+            return "ОШИБКА: Превышен лимит попыток дозвониться до API."
 
         message = response.choices[0].message
 
+        # If no tools are called, return the final textual response
         if not message.tool_calls:
             return message.content
 
@@ -278,50 +264,52 @@ def ask(question: str) -> str:
 
         for call in message.tool_calls:
             args = json.loads(call.function.arguments)
-            print(
-                f"  [debug] Tool invoked: {call.function.name}, args: {args}"
-            )
+            print(f"  [debug] Вызван инструмент: {call.function.name}, параметры: {args}")
+            
             try:
                 if call.function.name == "write_new_tool":
-                    result = handle_write_new_tool(schema, **args)
+                    result = handle_write_new_tool(schema, question, **args)
                 else:
-                    result = execute_registry_entry(
-                        schema, data, call.function.name, args
-                    )
-                content = json.dumps(
-                    result, ensure_ascii=False, default=str
-                )[:4000]
-                if isinstance(result, list):
-                    print(
-                        f"  [debug] Result: list containing {len(result)} items"
-                    )
-                else:
-                    print(f"  [debug] Result: {content[:200]}")
-            except Exception as exc:  # Prototype sandbox: errors do not crash execution
-                content = f"ERROR: {exc}"
-                print(f"  [debug] Execution ERROR: {exc}")
+                    result = execute_registry_entry(schema, data, call.function.name, args)
+                
+                content = json.dumps(result, ensure_ascii=False, default=str)
+                print(f"  [debug] Результат: {content[:200]}...")
+                
+            except Exception as exc: 
+                content = f"ОШИБКА: {exc}"
+                print(f"  [debug] {content}")
 
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": call.id,
-                    "name": call.function.name,
-                    "content": content,
-                }
-            )
+            messages.append({
+                "role": "tool",
+                "tool_call_id": call.id,
+                "name": call.function.name,
+                "content": content,
+            })
 
-    return "Reflection loop limit exceeded — escalating to system engineer."
+    return "ОШИБКА: Превышен лимит циклов рефлексии."
 
 
 if __name__ == "__main__":
-    test_questions = [
-        "How many towers are currently in critical priority?",
-        "Show site SITE-0001 — what is its priority and region?",
-        "Which site is currently consuming the most fuel above its historical average?",
-    ]
-    for i, q in enumerate(test_questions):
-        print("=" * 60)
-        print("Question:", q)
-        print("Answer:", ask(q))
-        if i < len(test_questions) - 1:
-            time.sleep(60)  # Free tier rate limit cooldown
+    print("=" * 60)
+    print("Semantic Router (Single Role - Telemetry Only)")
+    print("=" * 60)
+    
+    while True:
+        try:
+            q = input("\nПользователь: ").strip()
+            if q.lower() in ("exit", "quit", "выход"):
+                break
+            if not q:
+                continue
+                
+            start_time = time.time()
+            answer = ask(q)
+            elapsed = time.time() - start_time
+            
+            print(f"\nМета-Агент: {answer}")
+            print(f"[Время отклика: {elapsed:.2f} сек]")
+            print("-" * 60)
+            
+        except KeyboardInterrupt:
+            print("\nЗавершение работы...")
+            break
