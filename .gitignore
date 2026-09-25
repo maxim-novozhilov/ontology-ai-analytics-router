@@ -1,0 +1,7 @@
+.DS_Store
+.venv/
+__pycache__/
+**/__pycache__/
+exports/*.json
+tools/*.py
+suggested_tools.json
