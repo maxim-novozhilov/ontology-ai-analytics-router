@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "purpose": "Level 2 concept — semantic graph on top of real_telemetry.json. Graph does not store data, only the path to it (tools).",
-    "source_of_truth": "real_telemetry.json (Level 1, ETL: telemetry_ai_etl.py)",
+    "purpose": "Level 2 semantic graph on top of the public synthetic telemetry snapshot. The graph does not store data; tools declare how to access it.",
+    "source_of_truth": "data/synthetic_telemetry.json (Level 1 public demonstration snapshot)",
     "not_yet_wired": "route_solution.json (solver) — entities are marked up in advance, not yet populated with data"
   },
   "entities": {
