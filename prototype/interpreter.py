@@ -24,7 +24,7 @@ def _load_json(path: str) -> Any:
 
 def _resolve_source(data: dict, source_path: str) -> Any:
     """Resolve a path like 'telemetry[]' into a real target object within the data dictionary."""
-    path = source_path.replace("real_telemetry.json -> ", "").strip()
+    path = source_path.replace("synthetic_telemetry.json -> ", "").strip()
     node: Any = data
     for part in path.replace("[]", "").split("."):
         if part == "":
@@ -232,3 +232,15 @@ def execute_registry_entry(schema: dict, data: dict, entry_name: str, params: di
         return _apply_data_firewall(result, entry_name)
 
     return result
+
+
+if __name__ == "__main__":
+    schema = _load_json(str(BASE_DIR / "ontology_schema.json"))
+    data = _load_json(str(BASE_DIR / "data" / "synthetic_telemetry.json"))
+    critical_count = execute_registry_entry(
+        schema,
+        data,
+        "count_sites",
+        {"filters": {"solver_priority": "critical"}},
+    )
+    print(f"Interpreter check passed: {critical_count} critical sites")
