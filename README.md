@@ -1,74 +1,56 @@
 # Ontological AI Router
 
-An architectural concept and working prototype of an intelligent platform designed for analyzing dirty operational data.
+This repository is a public, synthetic-data prototype of an ontology-backed AI analytics router for telecom tower operations. It demonstrates how an LLM can select tools from a business schema while deterministic Python performs the calculations.
 
-The project addresses the core issue of LLMs in the Enterprise domain — numeric hallucinations. Instead of providing an LLM with direct access to raw tables or relying on on-the-fly SQL generation, the router establishes a rigid semantic bridge (an ontology) between the user and the underlying data layer. The model operates as an intelligent dispatcher, while all data processing is executed via strictly deterministic code.
+The dataset is deliberately synthetic and contains no production identifiers or telemetry. The original architecture remains the point of the project: isolate messy operational data, describe it with an ontology, and keep numeric execution outside the language model.
 
----
+## Architecture
 
-## 🧠 Core Concept: Three-Tier Architecture
+### Level 1: deterministic data and execution
 
-The system is split into three isolated layers, ensuring 100% mathematical accuracy in response formulation:
+`data/synthetic_telemetry.json` contains 100 generated tower records plus audit, accounting, regional, and historical analytics blocks. `interpreter.py` executes declarative `lookup`, `filter`, `count`, and `get_all` tools. Its data firewall exports lists larger than 15 records to `exports/` instead of returning them directly to the model.
 
-### Level 1: Deterministic Foundation (Data & Logic)
+### Level 2: semantic graph
 
-The raw data and processing layer. This prototype utilizes a synthetic JSON payload simulating a complex infrastructure environment complete with missing values, data glitches, and accounting source discrepancies. It also includes a placeholder for a VRP route solver. Core principle: dirty data is never purged; instead, it receives routing allowance flags (`data_flags`) processed by downstream logic.
+`ontology_schema.json` defines the entities, relationships, fields, allowed values, and tool registry. It contains the access contract, not a second copy of the data. Keeping the schema aligned with the JSON payload is essential: the interpreter resolves real payload paths such as `telemetry[]` and `audit.regional_report`.
 
-### Level 2: Semantic Graph (Ontology)
+### Level 3: semantic router and self-extension
 
-The `ontology_schema.json` file serves as the system's structural map. The graph stores no raw data; it defines business entities (Tower Site, Genset, Audit Report), their relations, and access specifications (`tools_registry`) used by the interpreter to fetch metrics. The LLM views only this schema, eliminating hallucinated key names or fields.
+`semantic_router.py` converts the registry into Mistral function definitions and routes natural-language questions to the interpreter. When the registered tools cannot express a complex aggregation, the model may call `write_new_tool`. The generated Python file is saved under `tools/`, registered for the current run, executed, and appended to `suggested_tools.json` for later validation.
 
-### Level 3: Agentic Environment & Self-Extension (AI Core)
+This is a quarantine workflow, not a security sandbox. Generated code is executed in the local Python process, so the prototype must not be exposed to untrusted prompts or production data. A real sandbox is still a planned capability.
 
-The operational AI orchestration layer (`semantic_router.py` + `interpreter.py`).
+## Validation
 
-* **Data Firewall:** The router maps natural language queries to explicit tool declarations in the ontology graph. The universal interpreter executes deterministic Python logic and returns concise summaries, preserving context window capacity.
+[validation.md](validation.md) is the validation artifact for the prototype. It contains ten English versions of business questions from the initial Russian list, their selected registry tools, parameters, and results produced from the synthetic snapshot.
 
-* **Meta-Agent (Self-Extension):** When presented with non-standard queries lacking pre-built declarations, the LLM leverages the ontology schema to generate new Python scripts dynamically, write them to disk, register them in the graph, and execute them on the fly.
+The report uses the deterministic registry/interpreter path. Running the Mistral conversation loop additionally requires an API key; the generated-tool path is implemented, but this repository does not claim sandbox isolation or API-backed execution for every example.
 
----
-
-## 🚀 Proven Capability (Prototype Testing)
-
-* **Zero Calculation Hallucinations:** Delegating numeric aggregations (`count`, `filter`, `lookup`) to a deterministic interpreter eliminates arithmetic mistakes by the LLM.
-
-* **Effective Self-Extension:** The meta-agent reliably authors custom tools during runtime (e.g., compiling summary dashboards from `audit.summary_report` or identifying fuel consumption anomalies) using `write_new_tool`.
-
-* **Ontology Blindness as a Security Feature:** If requested entities or fields are absent from the graph schema, the system returns an explicit failure or zero count rather than fabricating plausible but false figures.
-
----
-
-## 🛠 Architectural Lessons Learned
-
-1. **Exact Schema Alignment:** The ontology graph must be a 1:1 mirror of the underlying data payload. Any discrepancy in nesting levels or key names causes dynamic scripts to fail.
-
-2. **Strict Output Prompts:** Even with verified execution outputs, an LLM may attempt to paraphrase numerical results. System prompts must enforce strict constraints, such as *"state verbatim, do not recompute"*.
-
----
-
-## 📂 Repository Structure
+## Repository structure
 
 ```text
-docs/
-  structure.txt              # Complete Level 1 data structure template
-ontology/
-  ontology_schema.json       # Level 2 semantic graph (entities & tools_registry)
-prototype/
-  interpreter.py             # Universal deterministic execution engine
-  semantic_router.py         # AI router with self-extension capability (Mistral API)
-  data/telemetry.json        # Synthetic demo dataset
 data/
-  generate_synthetic_data.py # Synthetic data generator for stress tests
+  generate_synthetic_data.py       # Reproducible generator (seed 42)
+  synthetic_telemetry.json         # Public synthetic snapshot
+docs/
+  # Reserved for future documentation
+validation.md                      # Ten tested business questions and outputs
+ontology_schema.json               # Entities, relationships, and tool registry
+interpreter.py                     # Deterministic declaration interpreter
+semantic_router.py                 # Mistral router and self-extension flow
+exports/                           # Runtime data-firewall exports
+tools/                             # Runtime-generated tools
+suggested_tools.json               # Runtime tool-validation log
 ```
----
 
-## ⚙️ Running the Prototype
-
-Requires a free API key from Mistral API (`console.mistral.ai`)[cite: 15].
+## Run locally
 
 ```bash
-cd prototype
-pip install mistralai
-python3 interpreter.py                             # Local graph/interpreter execution check
-MISTRAL_API_KEY="..." python3 semantic_router.py   # Run the AI router agent
+python3 -m pip install mistralai
+python3 data/generate_synthetic_data.py
+python3 interpreter.py
+python3 -m unittest discover -s tests
+MISTRAL_API_KEY="..." python3 semantic_router.py
 ```
+
+The generator, interpreter, and tests are local and deterministic. The last command starts the interactive semantic router and uses the Mistral API.
