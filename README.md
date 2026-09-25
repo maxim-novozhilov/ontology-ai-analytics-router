@@ -33,7 +33,7 @@ data/
   generate_synthetic_data.py       # Reproducible generator (seed 42)
   synthetic_telemetry.json         # Public synthetic snapshot
 docs/
-  # Reserved for future documentation
+  structure.txt                    # Data structure and Level 1 contract
 validation.md                      # Ten tested business questions and outputs
 ontology_schema.json               # Entities, relationships, and tool registry
 interpreter.py                     # Deterministic declaration interpreter
