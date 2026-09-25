@@ -16,7 +16,7 @@ from interpreter import execute_registry_entry, _load_json
 
 BASE_DIR = Path(__file__).parent
 SCHEMA_PATH = BASE_DIR / "ontology_schema.json"
-DATA_PATH = BASE_DIR / "data" / "real_telemetry.json"
+DATA_PATH = BASE_DIR / "data" / "synthetic_telemetry.json"
 TOOLS_DIR = BASE_DIR / "tools"
 LOG_PATH = BASE_DIR / "suggested_tools.json"
 
@@ -127,7 +127,7 @@ def build_mistral_tools(schema: dict) -> list:
                         "type": "string",
                         "description": (
                             "Полный код функции def run(data, **params): ... "
-                            "data — это распарсенный real_telemetry.json (dict). "
+                            "data — это распарсенный synthetic_telemetry.json (dict). "
                             "РЕАЛЬНАЯ СТРУКТУРА data (это НЕ имена сущностей графа!): "
                             "data['telemetry'] — список вышек; data['audit'] — вложенные агрегаты "
                             "(master_data_issues, dynamic_data_issues, register_data_issues, regional_report, "
